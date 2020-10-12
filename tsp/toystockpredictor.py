@@ -1,4 +1,4 @@
-
+from objs.feature_vectors import FeatureVectors
 import core.featureextractor as featex
 import core.naivebayes as nbayes
 import os
@@ -18,25 +18,49 @@ def getcommands():
     while not os.path.isfile(path + fin):
         print("invalid filename.")
         fin = input("What file would you like use? (filename.csv) : ")
-    return path + fin
+
+    # variable for the moving average
+    movingavgdays = 0
+    # basis for defining the outcomes, a tuple containing high low splits that decide buy, hold, sell
+    outcomebasis = (2, -2)
+
+    return path + fin, movingavgdays, outcomebasis
 
 
-def run(fn):
+def run(filename, movingavgdays, outcomebasis):
 
-    # get feature vectors and training info
-    decisions, featurevectors = featex.formatdata(filename)
+    # get feature and outcomes data as a FeatureVectors object
+    allfeaturevectors = featex.formatdata(filename, movingavgdays, outcomebasis)
+
+    # 75%/25% training/testing split
+    trainingfeaturevectors = FeatureVectors(rawlist, perclist, avglist, featurelist, outcomes)
+    testingfeaturevectors = FeatureVectors(rawlist, perclist, avglist, featurelist, outcomes)
+
     # figure out some basic variables
-    datacount = len(featurevectors) - 1  # num of features minus the last
-    bcount = decisions.count('b')
-    scount = decisions.count('s')
-    hcount = len(featurevectors) - bcount + scount
+    datacount = len(trainingfeaturevectors.featurelist - 1)  # num of features minus the last
+    bcount = trainingfeaturevectors.outcomes.count('b')
+    scount = trainingfeaturevectors.outcomes.count('s')
+    hcount = len(trainingfeaturevectors.featurelist - 1) - bcount + scount
     bprior = bcount / datacount
     sprior = scount / datacount
     hprior = hcount / datacount
+
     # train model to get a data set for P(data|results) and other probabilities needed for naive bayes
-    td = nbayes.train(featurevectors, decisions, bcount, scount, hcount)
-    # do classification
-    res = nbayes.classify(datacount, featurevectors, td, bprior, sprior, hprior)
+    td = nbayes.train(trainingfeaturevectors.featurelist, trainingfeaturevectors.outcomes, bcount, scount, hcount)
+
+    # record the accuracy of the classification
+
+    # loop through the testing data and do classification
+    for featurevector in testingfeaturevectors.featurelist[:-1]:
+        # get evidence probability for this vector
+        ev = nbayes.getevidence(featurevector, testingfeaturevectors.featurelist, datacount)
+        res = nbayes.classify(featurevector, td, ev, bprior, sprior, hprior)
+        print("\np(buy|data), p(sell|data), p(hold|data)")
+        print(res)
+
+    # take the most recent feature and run the model to predict the unknown decision
+    lastVector = testingfeaturevectors.featurelist[-1]
+    res = nbayes.classify(lastVector, td, bprior, sprior, hprior)
     print("\np(buy|data), p(sell|data), p(hold|data)")
     print(res)
 
@@ -51,10 +75,10 @@ if __name__ == '__main__':
     while not done:
 
         # Read commands
-        filename = getcommands()
+        filename, movingavgdays, outcomebasis = getcommands()
 
         # Run the training or classification
-        run(filename)
+        run(filename, movingavgdays, outcomebasis)
 
         # check if we are done
         d = input("Continue or exit? (C or X) : ")

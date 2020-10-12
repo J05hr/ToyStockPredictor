@@ -62,34 +62,37 @@ def train(featurevectors, decisions, bcount, scount,  hcount):
     return td
 
 
-def classify(datacount, featurevectors, td, bprior, sprior, hprior):
-    # take the most recent feature and run the model to predict the unknown decision
-    lastVector = featurevectors[-1]
+def getevidence(featurevector, featurevectors, datacount):
+    # loop through vectors and get counts for evidence probability
+    # start with a very small count so the probability can't become 0 
+    ep1 = 0.1
+    ep2 = 0.1
+    ep3 = 0.1
+    ep4 = 0.1
+    ep5 = 0.1
+    for vector in featurevectors:
+        if vector[0] == featurevector[0]:
+            ep1 += 1
+        if vector[1] == featurevector[1]:
+            ep2 += 1
+        if vector[2] == featurevector[2]:
+            ep3 += 1
+        if vector[3] == featurevector[3]:
+            ep4 += 1
+        if vector[4] == featurevector[4]:
+            ep5 += 1
+    ev = (ep1 / datacount) * (ep2 / datacount) * (ep3 / datacount) * (ep4 / datacount) * (ep5 / datacount)
+
+
+def classify(featurevector, td, ev, bprior, sprior, hprior):
+    
     # smoothing value in case prob is 0
     smth = 0.01
-    # loop through vectors and get counts for evidence probability
-    ep1 = 0
-    ep2 = 0
-    ep3 = 0
-    ep4 = 0
-    ep5 = 0
-    for vector in featurevectors:
-        if vector[0] == lastVector[0]:
-            ep1 += 1
-        if vector[1] == lastVector[1]:
-            ep2 += 1
-        if vector[2] == lastVector[2]:
-            ep3 += 1
-        if vector[3] == lastVector[3]:
-            ep4 += 1
-        if vector[4] == lastVector[4]:
-            ep5 += 1
-    ev = (ep1/datacount) * (ep2/datacount) * (ep3/datacount) * (ep4/datacount) * (ep5/datacount)
 
     # calc p(data | result) for each outcome
-    pdb = td[0][0].get(lastVector[0], smth) * td[0][1].get(lastVector[1], smth) * td[0][2].get(lastVector[2], smth) * td[0][3].get(lastVector[3], smth) * td[0][4].get(lastVector[4], smth)
-    pds = td[1][0].get(lastVector[0], smth) * td[1][1].get(lastVector[1], smth) * td[1][2].get(lastVector[2], smth) * td[1][3].get(lastVector[3], smth) * td[1][4].get(lastVector[4], smth)
-    pdh = td[2][0].get(lastVector[0], smth) * td[2][1].get(lastVector[1], smth) * td[2][2].get(lastVector[2], smth) * td[2][3].get(lastVector[3], smth) * td[2][4].get(lastVector[4], smth)
+    pdb = td[0][0].get(featurevector[0], smth) * td[0][1].get(featurevector[1], smth) * td[0][2].get(featurevector[2], smth) * td[0][3].get(featurevector[3], smth) * td[0][4].get(featurevector[4], smth)
+    pds = td[1][0].get(featurevector[0], smth) * td[1][1].get(featurevector[1], smth) * td[1][2].get(featurevector[2], smth) * td[1][3].get(featurevector[3], smth) * td[1][4].get(featurevector[4], smth)
+    pdh = td[2][0].get(featurevector[0], smth) * td[2][1].get(featurevector[1], smth) * td[2][2].get(featurevector[2], smth) * td[2][3].get(featurevector[3], smth) * td[2][4].get(featurevector[4], smth)
 
     # calc final probabilities
     pbd = (1/ev)*pdb*bprior
