@@ -5,7 +5,7 @@ from objs.feature_vectors import FeatureVectors
 def formatdata(filename, movingavgdays, outcomebasis):
     rawlist = []
     perclist = []  # percent change day to day
-    avglist = []  # 5 day moving avg
+    avglist = []  # moving avg
     featurelist = []  # avglist but by percent change day to day
     outcomes = []  # buy, sell, or hold
 
@@ -23,59 +23,60 @@ def formatdata(filename, movingavgdays, outcomebasis):
                 rawlist.append(rd)
 
         # turn the raw data list into a feature list
-        # features defined by a 5 day moving average of each days variables then transform to a % change per day
+        # features defined by a moving average of each days variables
         for vidx in range(len(rawlist)):
             # start avgs after we have enough history
-            if vidx >= 2:
+            if vidx >= 1:
                 f1, f2, f3, f4, f5 = 0, 0, 0, 0, 0
                 f0 = rawlist[vidx][0]
                 # avg the 5 items
-                for idx in range(vidx-2, vidx+1):
+                for idx in range(vidx-1, vidx+1):
                     f1 += rawlist[idx][1]
                     f2 += rawlist[idx][2]
                     f3 += rawlist[idx][3]
                     f4 += rawlist[idx][4]
                     f5 += rawlist[idx][5]
                 # append the avgs to the feature list
-                avglist.append((f0, f1/3, f2/3, f3/3, f4/3, f5/3))
+                avglist.append((f0, f1/2, f2/2, f3/2, f4/2, f5/2))
 
         for aidx in range(len(avglist)):
             # start features after we have enough history to get a percent change
             if aidx >= 1:
                 # get the percent change
-                f0 = round((100 * avglist[aidx][1] / avglist[aidx-1][1]) - 100)
-                f1 = round((100 * avglist[aidx][2] / avglist[aidx-1][2]) - 100)
-                f2 = round((100 * avglist[aidx][3] / avglist[aidx-1][3]) - 100)
-                f3 = round((100 * avglist[aidx][4] / avglist[aidx-1][4]) - 100)
-                f4 = round((100 * avglist[aidx][5] / avglist[aidx-1][5]) - 100)
+                f0 = avglist[aidx][0]
+                f1 = round((100 * avglist[aidx][1] / avglist[aidx-1][1]) - 100)
+                f2 = round((100 * avglist[aidx][2] / avglist[aidx-1][2]) - 100)
+                f3 = round((100 * avglist[aidx][3] / avglist[aidx-1][3]) - 100)
+                f4 = round((100 * avglist[aidx][4] / avglist[aidx-1][4]) - 100)
+                f5 = round((100 * avglist[aidx][5] / avglist[aidx-1][5]) - 100)
                 # append the avgs to the feature list
-                featurelist.append((f0, f1, f2, f3, f4))
+                featurelist.append((f0, f1, f2, f3, f4, f5))
 
-        # decisions
+        # outcomes
         for vidx in range(len(rawlist)):
             # start features after we have enough history to get a percent change
             if vidx >= 1:
                 # get the percent change
-                f0 = round((100 * rawlist[vidx][1] / rawlist[vidx - 1][1]) - 100)
-                f1 = round((100 * rawlist[vidx][2] / rawlist[vidx - 1][2]) - 100)
-                f2 = round((100 * rawlist[vidx][3] / rawlist[vidx - 1][3]) - 100)
-                f3 = round((100 * rawlist[vidx][4] / rawlist[vidx - 1][4]) - 100)
-                f4 = round((100 * rawlist[vidx][5] / rawlist[vidx - 1][5]) - 100)
+                f0 = rawlist[vidx][0]
+                f1 = round((100 * rawlist[vidx][1] / rawlist[vidx - 1][1]) - 100)
+                f2 = round((100 * rawlist[vidx][2] / rawlist[vidx - 1][2]) - 100)
+                f3 = round((100 * rawlist[vidx][3] / rawlist[vidx - 1][3]) - 100)
+                f4 = round((100 * rawlist[vidx][4] / rawlist[vidx - 1][4]) - 100)
+                f5 = round((100 * rawlist[vidx][5] / rawlist[vidx - 1][5]) - 100)
                 # append the avgs to the feature list
-                perclist.append((f0, f1, f2, f3, f4))
+                perclist.append((f0, f1, f2, f3, f4, f5))
 
+        # decisions based on close price of the next day
+        # if the next day close is more than +3% then it was a buy
+        # if it's between +3% and -3% it was a hold
+        # if it's less than -3% then it was a sell
         for idx in range(len(perclist)-1):
-            if idx >= 2:
-                # decisions based on close price of the next day
-                # if the next day close is more than +3% then it was a buy
-                # if it's between +3% and -3% it was a hold
-                # if it's less than -3% then it was a sell
-                if perclist[idx][4] > 3:
-                    outcomes.append('b')
-                elif perclist[idx][4] < -1:
-                    outcomes.append('s')
-                else:
-                    outcomes.append('h')
+            if perclist[idx+1][4] >= 3:
+                outcomes.append((perclist[idx][0], 'b'))
+            elif perclist[idx+1][4] <= -3:
+                outcomes.append((perclist[idx][0], 's'))
+            else:
+                outcomes.append((perclist[idx][0], 'h'))
 
     except FileNotFoundError as e:
         print("Failed to open file")
@@ -85,5 +86,7 @@ def formatdata(filename, movingavgdays, outcomebasis):
         print("Failed to read features from file")
         print(str(e))
 
-    return FeatureVectors(rawlist, perclist, avglist, featurelist, outcomes)
+    # return the arrays and trim so indexes match
+    # featurelist will always have an additional item at the end which is used to make the final prediction
+    return FeatureVectors(rawlist[2:-1], perclist[1:-1], avglist[1:-1], featurelist, outcomes[1:])
 
