@@ -89,7 +89,7 @@ def classify(fv, td, ev, bprior, sprior, hprior):
     pbuys = td.pbuys
     psells = td.psells
     pholds = td.pholds
-    norm = 1/ev
+    ev = 1/ev
 
     # smoothing value in case prob is 0
     smth = 0.01
@@ -100,12 +100,14 @@ def classify(fv, td, ev, bprior, sprior, hprior):
     pdh = pholds[1].get(fv[1], smth) * pholds[2].get(fv[2], smth) * pholds[3].get(fv[3], smth) * pholds[4].get(fv[4], smth) * pholds[5].get(fv[5], smth)
 
     # calc final probabilities
-    pbd = norm*pdb*bprior
-    psd = norm*pds*sprior
-    phd = norm*pdh*hprior
+    pbd = pdb*bprior
+    psd = pds*sprior
+    phd = pdh*hprior
+
+    norm = pdb + psd + phd
 
     # result is a tuple of ( p(buy|data), p(sell|data), p(hold|data) )
-    res = [pbd, psd, phd]
+    res = [pbd/norm, psd/norm, phd/norm]
 
     return res
 

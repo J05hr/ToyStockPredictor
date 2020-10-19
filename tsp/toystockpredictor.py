@@ -1,6 +1,7 @@
 from objs.feature_vectors import FeatureVectors
 import core.featureextractor as featex
 import core.naivebayes as nbayes
+from pathlib import Path
 import math
 import os
 
@@ -12,20 +13,34 @@ done = False
 
 
 def getcommands():
-    # print to the user
-    print("Input a filename and the model will be trained and applied to the last line (current decision.\n*")
-    fin = input("What file would you like use? (filename.csv) : ")
-    path = 'C:/Users/J05h/Desktop/Projects/ToyStockPredictor/tsp/data/'
-    while not os.path.isfile(path + fin):
+    # variable for the moving average
+    print("How long would you like the moving average to be in days?  eg: 5\n*")
+    mad = input("Input a number : ")
+    while mad:
+        print("Invalid moving average quantity")
+        mad = input("Input a number : ")
+
+    # basis for defining the outcomes, a tuple containing high low splits that decide buy, hold, sell
+    print("How would you like to define outcomes? \n"
+          "format: (percent increase above which to buy, percent decrease below which to sell)  eg: (5,-5)\n*")
+    ob = input("Input 2 numbers comma separated in parenthesis : ")
+    while ob:
+        print("Invalid outcome range.")
+        ob = input("Input 2 numbers comma separated in parenthesis : ")
+
+    # get filename to use
+    print("Input a stock ticker. The model will be trained and applied to the last recorded day\n*")
+    fin = input("Which ticker would you like use?  eg: TSLA : ")
+    path = str(Path.cwd()) + "\\data\\"
+    while not os.path.isfile(path + fin.upper() + ".csv"):
         print("invalid filename.")
         fin = input("What file would you like use? (filename.csv) : ")
 
-    # variable for the moving average
-    movingavgdays = 0
-    # basis for defining the outcomes, a tuple containing high low splits that decide buy, hold, sell
-    outcomebasis = (2, -2)
+    fname = (path + fin.upper() + ".csv")
+    movingavgd = tuple(mad)
+    outcomeb = int(ob)
 
-    return path + fin, movingavgdays, outcomebasis
+    return fname, movingavgd, outcomeb
 
 
 def run(filename, movingavgdays, outcomebasis):
@@ -60,8 +75,12 @@ def run(filename, movingavgdays, outcomebasis):
 
     # record the accuracy of the classification
     correctcnt = 0
+    monin = 0
+    monout = 0
+    buyin = 0
+
     # loop through the testing data and do classification
-    for fvidx in range(len(testfvs.featurelist)-1):
+    for fvidx in range(len(testfvs.featurelist)-2):
         featurevector = testfvs.featurelist[fvidx]
         # get evidence probability for this vector
         ev = nbayes.getevidence(featurevector, trainfvs.featurelist, traindcnt)
@@ -72,20 +91,31 @@ def run(filename, movingavgdays, outcomebasis):
         # figure out the predicted outcome
         if res.index(max(res)) == 0:
             pout = 'b'
+            monin += 100
+            buyin += 100
         elif res.index(max(res)) == 1:
             pout = 's'
+            if monin > 100:
+                monin -= 100
+                monout += 100
         else:
             pout = 'h'
         # check if the test prediction was accurate and print
         if testfvs.outcomes[fvidx][1] == pout:
             correctcnt += 1
-            print("prediction correct\n")
+            print("outcome: " + testfvs.outcomes[fvidx][1] + ", prediction: " + pout + " correct\n")
         else:
-            print("prediction incorrect\n")
+            print("outcome: " + testfvs.outcomes[fvidx][1] + ", prediction: " + pout + " incorrect\n")
+
+        percnextdayclose = testfvs.perclist[fvidx+1][4]
+        nextdayprofit = monin * (percnextdayclose/100)
+        monin += nextdayprofit
 
     # print the accuracy of the classification at the end of testing
     accur = correctcnt / (len(testfvs.featurelist)-1)
     print("total prediction accuracy is: " + str(accur) + "\n")
+    print("moneyin: " + str(monin) + ", moneyout: " + str(monout) + "\n")
+    print("buyin: " + str(buyin) + ", profit: " + str(monin + monout - buyin) + "\n")
 
     # take the most recent feature and run the model to predict the unknown decision
     lastvector = testfvs.featurelist[-1]
