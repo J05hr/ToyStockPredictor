@@ -4,6 +4,7 @@ import core.naivebayes as nbayes
 from pathlib import Path
 import math
 import os
+import re
 
 
 # boolean to tell us if we've trained yet
@@ -14,22 +15,28 @@ done = False
 
 def getcommands():
     # variable for the moving average
-    print("How long would you like the moving average to be in days?  eg: 5\n*")
+    print("How long would you like the moving average to be in days?  eg: 5")
     mad = input("Input a number : ")
-    while mad:
+    while not re.search("^(\\d+)$", mad) or 0 > int(mad) > 500:
         print("Invalid moving average quantity")
         mad = input("Input a number : ")
+    print("*")
 
     # basis for defining the outcomes, a tuple containing high low splits that decide buy, hold, sell
-    print("How would you like to define outcomes? \n"
-          "format: (percent increase above which to buy, percent decrease below which to sell)  eg: (5,-5)\n*")
-    ob = input("Input 2 numbers comma separated in parenthesis : ")
-    while ob:
-        print("Invalid outcome range.")
-        ob = input("Input 2 numbers comma separated in parenthesis : ")
+    print("Define the outcome decision range.")
+    ob1 = input("Input the percent gain above which to buy : ")
+    while not re.search("^(\\d+)$", ob1) or 0 > int(ob1) > 500:
+        print("Invalid positive range.")
+        ob1 = input("Input the percent gain above which to buy : ")
+    ob2 = input("Input the percent loss below which to sell : ")
+    while not re.search("^(-\\d+)$", ob2) or 0 < int(ob2) or -500 > int(ob2) or int(ob1) == int(ob2):
+        print("Invalid negative range.")
+        ob2 = input("Input the percent loss below which to sell : ")
+    print("*")
+    print("Using range (%s, %s)\n*" % (ob1, ob2))
 
     # get filename to use
-    print("Input a stock ticker. The model will be trained and applied to the last recorded day\n*")
+    print("Input a stock ticker. The model will be trained and applied to the last recorded day")
     fin = input("Which ticker would you like use?  eg: TSLA : ")
     path = str(Path.cwd()) + "\\data\\"
     while not os.path.isfile(path + fin.upper() + ".csv"):
@@ -37,8 +44,8 @@ def getcommands():
         fin = input("What file would you like use? (filename.csv) : ")
 
     fname = (path + fin.upper() + ".csv")
-    movingavgd = tuple(mad)
-    outcomeb = int(ob)
+    movingavgd = int(mad)
+    outcomeb = (int(ob1), int(ob2))
 
     return fname, movingavgd, outcomeb
 
@@ -86,7 +93,8 @@ def run(filename, movingavgdays, outcomebasis):
         ev = nbayes.getevidence(featurevector, trainfvs.featurelist, traindcnt)
         res = nbayes.classify(featurevector, td, ev, bprior, sprior, hprior)
         # print the results
-        print("  p(buy|data)    |     p(sell|data)    |     p(hold|data)")
+        print(featurevector[0])
+        print("    p(buy|data)       |     p(sell|data)    |    p(hold|data)")
         print(res)
         # figure out the predicted outcome
         if res.index(max(res)) == 0:
@@ -103,9 +111,9 @@ def run(filename, movingavgdays, outcomebasis):
         # check if the test prediction was accurate and print
         if testfvs.outcomes[fvidx][1] == pout:
             correctcnt += 1
-            print("outcome: " + testfvs.outcomes[fvidx][1] + ", prediction: " + pout + " correct\n")
+            print("outcome: " + testfvs.outcomes[fvidx][1] + " ,  prediction: " + pout + " ,  Correct\n")
         else:
-            print("outcome: " + testfvs.outcomes[fvidx][1] + ", prediction: " + pout + " incorrect\n")
+            print("outcome: " + testfvs.outcomes[fvidx][1] + " ,  prediction: " + pout + " ,  I5ncorrect\n")
 
         percnextdayclose = testfvs.perclist[fvidx+1][4]
         nextdayprofit = monin * (percnextdayclose/100)
@@ -113,25 +121,23 @@ def run(filename, movingavgdays, outcomebasis):
 
     # print the accuracy of the classification at the end of testing
     accur = correctcnt / (len(testfvs.featurelist)-1)
-    print("total prediction accuracy is: " + str(accur) + "\n")
-    print("moneyin: " + str(monin) + ", moneyout: " + str(monout) + "\n")
-    print("buyin: " + str(buyin) + ", profit: " + str(monin + monout - buyin) + "\n")
+    print("total prediction accuracy is: " + str(accur * 100) + "%")
+    print("money in: $" + str(monin) + ", money out: $" + str(monout))
+    print("total buy in: $" + str(buyin) + ", profit: $" + str(monin + monout - buyin))
 
     # take the most recent feature and run the model to predict the unknown decision
     lastvector = testfvs.featurelist[-1]
     ev = nbayes.getevidence(lastvector, trainfvs.featurelist, traindcnt)
     res = nbayes.classify(lastvector, td, ev, bprior, sprior, hprior)
-    print("\nfinal prediction for the unknown last day")
-    print("  p(buy|data)    |     p(sell|data)    |     p(hold|data)")
+    print("\nfinal prediction for the unknown (last day)")
+    print("    p(buy|data)       |     p(sell|data)    |    p(hold|data)")
     print(str(res) + "\n")
 
 
 if __name__ == '__main__':
     # print to the user
     print("\nJosh's toy stock predictor\n*")
-    print("Outcome labels are based on close price of the next day.\n-If the next day close is more than +3% then it was a buy.\n"
-          "-If it's between +3% and -3% it was a hold.\n-If it's less than -3% then it was a sell.\n*\n*\n*")
-    data = None
+    print("Outcome labels are based on close price of the next day.\n*\n*")
 
     while not done:
 
