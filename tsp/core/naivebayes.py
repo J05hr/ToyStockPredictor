@@ -65,11 +65,11 @@ def train(trainingfvs, outcomes, bcount, scount,  hcount):
 def getevidence(fv, trainingfvs, traincount):
     # loop through vectors and get counts for evidence probability
     # start with a very small count so the probability can't become 0 
-    ep1 = 0.1
-    ep2 = 0.1
-    ep3 = 0.1
-    ep4 = 0.1
-    ep5 = 0.1
+    ep1 = 1
+    ep2 = 1
+    ep3 = 1
+    ep4 = 1
+    ep5 = 1
     for vector in trainingfvs:
         if vector[1] == fv[1]:
             ep1 += 1
@@ -92,7 +92,7 @@ def classify(fv, td, ev, bprior, sprior, hprior):
     ev = 1/ev
 
     # smoothing value in case prob is 0
-    smth = 0.01
+    smth = 0.001
 
     # calc p(data | result) for each outcome
     pdb = pholds[1].get(fv[1], smth) * pholds[2].get(fv[2], smth) * pbuys[3].get(fv[3], smth) * pbuys[4].get(fv[4], smth) * pbuys[5].get(fv[5], smth)
